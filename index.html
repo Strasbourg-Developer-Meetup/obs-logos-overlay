@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Obs Logos Overlay</title>
+        <style>
+            body { margin: 0; }
+            main { 
+                width: 100vw; 
+                height: 100vh; 
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+            }
+            @keyframes fadeIn {
+                0% { opacity: 0; }
+                100% { opacity: 1; }
+            }
+            @keyframes fadeOut {
+                0% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            .fade-in-image { animation: fadeIn 2.5s; }
+            .fade-out-image { 
+                animation: fadeOut 2.5s; 
+            }
+
+        </style>
+    </head>
+    <body>
+        <main id="container">
+            <!-- images displayed here -->
+        </main>
+        <script>
+            const container = document.getElementById('container');
+            
+            const PAYLOAD_KEY = 'payload';
+            const TIME_BETWEEN_IMAGES_KEY = 'tbi';
+
+            const ANIMATION_DURATION = 2500;
+
+            const sleep = (duration) => new Promise(resolve => setTimeout(resolve, duration));
+
+            const run = async () => {
+                const url = new URL(location.href);
+                const params = url.searchParams;
+
+                const rawPayload = params.get(PAYLOAD_KEY);
+                const timeBetweenImages = Number(params.get(TIME_BETWEEN_IMAGES_KEY) ?? 5000);
+
+                if(!rawPayload) {
+                    throw new Error('No payload provided');
+                }
+
+                const payload = JSON.parse(rawPayload);
+
+
+                if(!Array.isArray(payload)) {
+                    throw new Error('Expected payload to be an array');
+                }
+
+                const imageConfig = [];
+
+                for(const { imageUrl, duration = 1000 } of payload) {
+                    const image = new Image();
+                    image.src = imageUrl;
+                    image.style.maxWidth = '100vw';
+                    image.style.height = 'auto';
+                    image.style.display = 'none';
+                    imageConfig.push({ image, duration });
+                }
+
+                await Promise.all(imageConfig.map(({ image }) => new Promise((resolve, reject) => {
+                    image.addEventListener('load', resolve);
+                    image.addEventListener('error', reject);
+                })))
+
+                imageConfig.forEach(({ image }) => container.appendChild(image));
+
+                let currentImageIndex = 0;
+
+                while(true) {
+                    const { image, duration } = imageConfig[currentImageIndex];
+                    image.classList.add('fade-in-image');
+                    image.style.display = 'block';
+                    await sleep(duration + ANIMATION_DURATION);
+                    image.classList.remove('fade-in-image');
+                    image.classList.add('fade-out-image');
+                    await sleep(ANIMATION_DURATION);
+                    image.style.display = 'none';
+                    image.classList.remove('fade-out-image');
+                    await sleep(timeBetweenImages);
+                    currentImageIndex = (currentImageIndex + 1) % imageConfig.length;
+                }
+            }
+
+            window.addEventListener('load', run);
+        </script>
+    </body>
+</html>
